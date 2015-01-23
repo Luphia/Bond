@@ -126,8 +126,6 @@ Channel.prototype.start = function() {
 	});
 
 	//push service
-	route.all('/push/', module.exports.pushMessage);
-	route.all('/push/:channel', module.exports.pushMessage);
 
 	logger.info.info("Socket start");
 	active = true;

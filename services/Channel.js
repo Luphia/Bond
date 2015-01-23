@@ -125,9 +125,6 @@ Channel.prototype.start = function() {
 		});
 	});
 
-	//push service
-
-	logger.info.info("Socket start");
 	active = true;
 
 };

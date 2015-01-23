@@ -39,7 +39,6 @@ Channel.prototype.start = function() {
 			// we tell the client to execute 'new message'
 			socket.broadcast.emit('new message', msg);
 
-			log(msg);
 			//self.send();
 		});
 

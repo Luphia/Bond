@@ -42,6 +42,25 @@ Channel.prototype.start = function() {
 			//self.send();
 		});
 
+		// when the client emits 'new file message', this listens and executes
+		socket.on('new file message', function (data) {
+			var msg = {
+				user: {
+					uid: socket.id,
+					ip: socket.handshake.address.address,
+					name: socket.username
+				},
+				channel: data.channel,
+				message: data,
+				timestamp: new Date()
+			};
+
+			// we tell the client to execute 'new message'
+			socket.broadcast.emit('new file message', msg);
+
+			//self.send();
+		});
+
 		// get channel history
 		socket.on('load message', function(data) {
 
@@ -66,7 +85,7 @@ Channel.prototype.start = function() {
 			});
 			// echo globally (all clients) that a person has connected
 			socket.broadcast.emit('user joined', {
-					user: {
+				user: {
 					name: socket.username
 				},
 				numUsers: numUsers,

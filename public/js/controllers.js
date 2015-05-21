@@ -103,6 +103,34 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		}
 	};
 	var sendMessage = function() {
+		var fileElement = document.getElementById("file");
+		var files = fileElement.files;
+
+		if (files.length > 0) {
+			var file = files[0];
+			var easyfile = new EasyFile();
+
+			easyfile.loadFile(file, function(result) {
+				var fileMessage = {
+					"user": {
+						"name": "me",
+						"me": true
+					},
+					"message": result.data,
+					"timestamp": new Date()
+				};
+
+				$socket.emit('new file message', result.data);
+				addMessage(fileMessage);
+				fileElement.value = null;
+				gotoBottom();
+
+				// Angular won't automatically notice changes
+				// to scope if they occur during 'external' callbacks.
+				$scope.$apply();
+			});
+		}
+
 		var text = $scope.newMessage;
 		if (text.length == 0) { return false; }
 
@@ -121,6 +149,11 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		gotoBottom();
 	};
 	$scope.sendMessage = sendMessage;
+
+	var selectFile = function() {
+		document.getElementById("file").click();
+	}
+	$scope.selectFile = selectFile;
 
 	var addChatTyping = function(data) {
 
@@ -170,6 +203,7 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	$scope.isLogin = true;
 	$scope.messages = [];
 	processMessages($scope.messages);
+	$scope.newMessage = '';
 
 	//var $socket = io();
 	$socket.emit('add user', 'Somebody');	// --
@@ -193,6 +227,38 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	}).bindTo($scope);
 	$socket.on('new message', function (data) {
 		data.type = "text";
+		addMessage(data);
+		gotoBottom();
+	}).bindTo($scope);
+
+	// not available in Safari
+	function createObjectURL (file) {
+		if (window.webkitURL) {
+			return window.webkitURL.createObjectURL(file);
+		} else if (window.URL && window.URL.createObjectURL) {
+			return window.URL.createObjectURL(file);
+		} else {
+			return null;
+		}
+	}
+
+	// Whenever the server emits 'new file message', update the chat body
+	$socket.on('new file message', function (data) {
+		var file = data.message;
+		// ArrayBuffer -> blob
+		file.blob = new Blob([file.blob]);
+
+		var a = document.createElement("a");
+		document.body.appendChild(a);
+
+		a.href = createObjectURL(file.blob);
+		a.download = file.name;
+		a.click();
+
+		data.type = 'text';
+		data.message = "Sends '" + file.name + "' and it will be download\
+		ed automatically";
+
 		addMessage(data);
 		gotoBottom();
 	}).bindTo($scope);

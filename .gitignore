@@ -1,4 +1,5 @@
 # Logs
+logs
 *.log
 
 # Runtime data
@@ -19,9 +20,21 @@ coverage
 build/Release
 
 # Dependency directory
-# Deployed apps should consider commenting this line out:
-# see https://npmjs.org/doc/faq.html#Should-I-check-my-node_modules-folder-into-git
+# Commenting this out is preferred by some people, see
+# https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git-
 node_modules
 
-# Private Data
+# Users Environment Variables
+.lock-wscript
+
+# Dataset
+uploads
+dataset
+
+# Config
+config
+
+# Private files
+private.*
 *.private
+*.private.*

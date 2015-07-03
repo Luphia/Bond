@@ -122,19 +122,27 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		$scope.newMessage = '';
 		gotoBottom();
 	};
+var s;
 	var postShard = function(r2x) {
-console.log(r2x.pointer);
-var s = new Date();
-		var shard = r2x.nextShard('restful');
+s = new Date();//--
+		var hash = r2x.getShard(r2x.pointer, 'hash');
+		var shard = r2x.nextShard('blob');
+
 		if(shard) {
-			$http.post('/dataset/shard/', shard).success(function(d, s, h, c) {
+			var formData = new FormData();
+			formData.append("file", shard);
+			var request = new XMLHttpRequest();
+			request.onload = function() {
 				postShard(r2x);
-				console.log("cost: %d", (new Date() - s));
-			});
+console.log("cost: %d", (new Date() - s));//--
+			}
+			request.open("POST", "/shard/" + hash);
+			request.send(formData);
 		}
 		else if(!r2x.write) {
 			r2x.write = true;
-			$http.post('/dataset/meta/', r2x.getMeta()).success(function(d, s, h, c) {
+			var meta = r2x.getMeta();
+			$http.post('/dataset/meta/', meta).success(function(d, s, h, c) {
 				var url = r2x.toURL();
 				var video = document.createElement('video');
 				video.setAttribute("src", url);
@@ -142,15 +150,11 @@ var s = new Date();
 				video.setAttribute("autoplay", "");
 				document.body.appendChild(video);
 			});
+console.log(meta);
+			$socket.emit('meta', meta);
 		}
 	};
-	var sendFile = function(r2x) {
-		var shard;
-		postShard(r2x);
 
-		var meta = r2x.getMeta(true);
-		$socket.emit('meta', meta);
-	};
 	var sendShard = function(hash, i) {
 		$socket.emit('shard', {
 			hash: hash,
@@ -174,7 +178,8 @@ var s = new Date();
 				var r2x = new Raid2X();
 				r2x.readFile(evt.target.files[k], function(e, r) {
 					$scope.files[r.attr.hash] = r;
-					sendFile(r);
+					postShard(r);
+console.log(r.getMeta(true))
 				});
 			}
 		}, false);
@@ -215,23 +220,53 @@ var s = new Date();
 		s = new Date();
 		var r2x = new Raid2X(meta);
 		$scope.files[meta.hash] = r2x;
-		for(var i = 0; i < meta.attr.sliceCount; i++) {
-			$http.get('/dataset/shard/?q=hash%3D%27' + meta.shardList[i] + '%27').success(function(d, s, h, c) {
-				var base64 = d.data[0].base64;
-				var p = r2x.importBase64(base64);
 
-				if(p < 1) {
-					console.log('%d%', p * 100);
-				}
-				else {
-					var url = r2x.toURL();
-					var video = document.createElement('video');
-					video.setAttribute("src", url);
-					video.setAttribute("controls", "");
-					video.setAttribute("autoplay", "");
-					document.body.appendChild(video);
-				}
+		//++ something whrong
+		for(var i = 0; i < meta.sliceCount; i++) {
+			var fp = '/shard/' + meta.shardList[i];
+
+			var xhr = new XMLHttpRequest();
+			xhr.open('GET', fp, true);
+			xhr.responseType = 'blob';
+
+			xhr.onload = function(e) {
+				var file = new Blob([xhr.response]);
+				r2x.importFile(file, function(e, d) {
+					if(d < 1) {
+						console.log('%d%', d * 100);
+					}
+					else {
+						var url = r2x.toURL();
+						var video = document.createElement('video');
+						video.setAttribute("src", url);
+						video.setAttribute("controls", "");
+						video.setAttribute("autoplay", "");
+						document.body.appendChild(video);
+					}
+				});
+			}
+			xhr.send();
+			/*
+			$http.get('/shard/' + meta.shardList[i]).success(function(d, s, h, c) {
+				var file = new Blob(d);
+
+				r2x.importFile(file, function(e, d) {
+					if(d < 1) {
+						console.log('%d%', d * 100);
+					}
+					else {
+						var url = r2x.toURL();
+						var video = document.createElement('video');
+						video.setAttribute("src", url);
+						video.setAttribute("controls", "");
+						video.setAttribute("autoplay", "");
+						document.body.appendChild(video);
+					}
+				});
+
+
 			});
+			*/
 		}
 	};
 	var addShard = function(hash, shard) {

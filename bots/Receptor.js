@@ -94,7 +94,9 @@ Receptor.prototype.init = function(config) {
 	this.app.use(multer({ dest: './uploads/', limit: '10mb'}));
 	this.app.use(this.filter);
 	this.app.use(express.static(path.join(__dirname, '../public')));
+
 	this.app.use(this.router);
+	this.app.use('/shard', express.static(path.join(__dirname, '../uploads')));
 	this.app.use(this.returnData);
 
 	this.ctrl = [];

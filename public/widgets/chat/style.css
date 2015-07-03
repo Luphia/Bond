@@ -26,7 +26,9 @@
   word-wrap: break-word;
 }
 
-
+.ng-scope.chat [ng-click] {
+  cursor: pointer;
+}
 
 .ng-scope.chat .page {
   /* height: 100%; */
@@ -173,6 +175,7 @@
   background: #ccc;
   position: fixed;
   width: 400px;
+  top: 0px;
 }
 
 .ng-scope.chat .messages {

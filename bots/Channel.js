@@ -1,16 +1,45 @@
-var Channel = function(config) {
-	this.init(config);
-};
+var Bot = require('./_Bot.js')
+,	util = require('util')
+;
+
+
+var Channel = function(config) { this.init(config); };
+
+util.inherits(Channel, Bot);
 
 Channel.prototype.init = function(config) {
-	
+
 };
-Channel.prototype.setConfig = function(config) {
-	this.config = config;
-	this.io = require('socket.io').listen(this.config.get('server'), {
-	    'pingInterval': 3600000,
-	    'pingTimeout': 3600000
-	});
+
+Channel.prototype.setApp = function(app) {
+	this.io = require('socket.io').listen(app, {});
+};
+
+Channel.prototype.tag = function(client, tag) {
+	if(Array.isArray(tag)) {
+		for(var k in tag) {
+			this.tag(client, tag[k]);
+		}
+	}
+
+	if(!!tag) {
+		if(!this.tags[tag]) {
+			this.tags[tag] = [];
+		}
+
+		if(this.tags[tag].indexOf(client) == -1) {
+			this.tags[tag].push(client);
+		}
+	}
+};
+
+Channel.prototype.untag = function(client) {
+	for(var k in this.tags) {
+		var clientIndex = this.tags[k].indexOf(client);
+		if(clientIndex != -1) {
+			this.tags[k].splice(this.tags[k].indexOf(client), 1);
+		}
+	}
 };
 
 Channel.prototype.start = function() {
@@ -40,6 +69,16 @@ Channel.prototype.start = function() {
 			socket.broadcast.emit('new message', msg);
 
 			//self.send();
+		});
+
+		socket.on('meta', function (data) {
+			socket.broadcast.emit('meta', data);
+		});
+		socket.on('shard', function (data) {
+			socket.broadcast.emit('shard', data);
+		});
+		socket.on('requestShard', function (data) {
+			socket.broadcast.emit('requestShard', data);
 		});
 
 		// when the client emits 'new file message', this listens and executes

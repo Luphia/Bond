@@ -23,3 +23,11 @@ div[ng-view] {
 .hide {
 	display: none;
 }
+
+video {
+	position: fixed;
+	margin: auto;
+	top: 5%;
+	left: 10%;
+	width: 80%;
+}

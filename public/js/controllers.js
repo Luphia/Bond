@@ -11,6 +11,8 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	];
 
 	$scope.end = false;
+	$scope.files = {};
+	var s;
 
 	$scope.join = function(ch) {
 		if(!ch.listen) {
@@ -103,34 +105,6 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		}
 	};
 	var sendMessage = function() {
-		var fileElement = document.getElementById("file");
-		var files = fileElement.files;
-
-		if (files.length > 0) {
-			var file = files[0];
-			var easyfile = new EasyFile();
-
-			easyfile.loadFile(file, function(result) {
-				var fileMessage = {
-					"user": {
-						"name": "me",
-						"me": true
-					},
-					"message": result.data,
-					"timestamp": new Date()
-				};
-
-				$socket.emit('new file message', result.data);
-				addMessage(fileMessage);
-				fileElement.value = null;
-				gotoBottom();
-
-				// Angular won't automatically notice changes
-				// to scope if they occur during 'external' callbacks.
-				$scope.$apply();
-			});
-		}
-
 		var text = $scope.newMessage;
 		if (text.length == 0) { return false; }
 
@@ -148,12 +122,67 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		$scope.newMessage = '';
 		gotoBottom();
 	};
+	var postShard = function(r2x) {
+console.log(r2x.pointer);
+var s = new Date();
+		var shard = r2x.nextShard('restful');
+		if(shard) {
+			$http.post('/dataset/shard/', shard).success(function(d, s, h, c) {
+				postShard(r2x);
+				console.log("cost: %d", (new Date() - s));
+			});
+		}
+		else if(!r2x.write) {
+			r2x.write = true;
+			$http.post('/dataset/meta/', r2x.getMeta()).success(function(d, s, h, c) {
+				var url = r2x.toURL();
+				var video = document.createElement('video');
+				video.setAttribute("src", url);
+				video.setAttribute("controls", "");
+				video.setAttribute("autoplay", "");
+				document.body.appendChild(video);
+			});
+		}
+	};
+	var sendFile = function(r2x) {
+		var shard;
+		postShard(r2x);
+
+		var meta = r2x.getMeta(true);
+		$socket.emit('meta', meta);
+	};
+	var sendShard = function(hash, i) {
+		$socket.emit('shard', {
+			hash: hash,
+			shard: $scope.files[hash].getShard(i)
+		});
+	};
+	var requestShard = function(data) {
+		$socket.emit('shard', sendShard(data.hash, data.i));
+	};
+
 	$scope.sendMessage = sendMessage;
 
 	var selectFile = function() {
-		document.getElementById("file").click();
+		var f = document.createElement("input");
+		f.setAttribute("type", "file");
+		f.setAttribute("style", "display: none");
+		document.body.appendChild(f);
+		f.addEventListener('change', function(evt) {
+			for(var k in evt.target.files) {
+				if(new String(evt.target.files[k]) != "[object File]") { continue; }
+				var r2x = new Raid2X();
+				r2x.readFile(evt.target.files[k], function(e, r) {
+					$scope.files[r.attr.hash] = r;
+					sendFile(r);
+				});
+			}
+		}, false);
+		f.click();
+		document.body.removeChild(f);
 	}
 	$scope.selectFile = selectFile;
+
 
 	var addChatTyping = function(data) {
 
@@ -181,6 +210,52 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		clearTimeout(stopTypingEvent);
 		stopTypingEvent = setTimeout(stopTyping, time);
 	}
+
+	var addMeta = function(meta) {
+		s = new Date();
+		var r2x = new Raid2X(meta);
+		$scope.files[meta.hash] = r2x;
+		for(var i = 0; i < meta.attr.sliceCount; i++) {
+			$http.get('/dataset/shard/?q=hash%3D%27' + meta.shardList[i] + '%27').success(function(d, s, h, c) {
+				var base64 = d.data[0].base64;
+				var p = r2x.importBase64(base64);
+
+				if(p < 1) {
+					console.log('%d%', p * 100);
+				}
+				else {
+					var url = r2x.toURL();
+					var video = document.createElement('video');
+					video.setAttribute("src", url);
+					video.setAttribute("controls", "");
+					video.setAttribute("autoplay", "");
+					document.body.appendChild(video);
+				}
+			});
+		}
+	};
+	var addShard = function(hash, shard) {
+		var r2x = $scope.files[hash];
+		var size = r2x.attr.sliceSize + 8;
+		var arr = new Array(size);
+		for(var i = 0; i < arr.length; i++) {
+			arr[i] = shard[i];
+		}
+		shard = new Uint8Array(arr); 
+		var progress = r2x.importShard(shard);
+		console.log("%d % - %d", progress * 100, new Date() - s);
+		if(progress < 1) {
+			// $socket.emit('requestShard', {hash: hash, i: r2x.getDownloadPlan()[0]});
+		}
+		else {
+			var url = r2x.toURL();
+			var video = document.createElement('video');
+			video.setAttribute("src", url);
+			video.setAttribute("controls", "");
+			video.setAttribute("autoplay", "");
+			document.body.appendChild(video);
+		}
+	};
 
 	var listen = {"channel": "default", "timestamp": new Date() * 1};
 	$scope.loadMessage = function() {
@@ -231,17 +306,6 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		gotoBottom();
 	}).bindTo($scope);
 
-	// not available in Safari
-	function createObjectURL (file) {
-		if (window.webkitURL) {
-			return window.webkitURL.createObjectURL(file);
-		} else if (window.URL && window.URL.createObjectURL) {
-			return window.URL.createObjectURL(file);
-		} else {
-			return null;
-		}
-	}
-
 	// Whenever the server emits 'new file message', update the chat body
 	$socket.on('new file message', function (data) {
 		var file = data.message;
@@ -285,5 +349,15 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	// Whenever the server emits 'stop typing', kill the typing message
 	$socket.on('stop typing', function (data) {
 		removeChatTyping(data);
+	}).bindTo($scope);
+
+	$socket.on('meta', function (data) {
+		addMeta(data);
+	}).bindTo($scope);
+	$socket.on('shard', function (data) {
+		addShard(data.hash, data.shard);
+	}).bindTo($scope);
+	$socket.on('requestShard', function (data) {
+		sendShard(data.hash, data.i);
 	}).bindTo($scope);
 }]);

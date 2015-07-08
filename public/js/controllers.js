@@ -124,6 +124,27 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	};
 var s;
 	var postShard = function(r2x) {
+		r2x.uploadAll("/shard/", function(e, d) {
+			console.log(d);
+
+			if(d < 1) { return false; }
+			var copy;
+			var meta = r2x.getMeta();
+
+			console.log(meta);
+
+			copy = new Raid2X(meta);
+			copy.downloadAll("/shard/", function(ee, dd) {
+				if(dd == 1) {
+					copy.save();
+				}
+				else {
+					console.log(dd);
+				}
+			});
+		});
+
+		/*
 s = new Date();//--
 		var hash = r2x.getShard(r2x.pointer, 'hash');
 		var shard = r2x.nextShard('blob');
@@ -153,6 +174,7 @@ console.log("cost: %d", (new Date() - s));//--
 console.log(meta);
 			$socket.emit('meta', meta);
 		}
+		*/
 	};
 
 	var sendShard = function(hash, i) {
@@ -175,11 +197,28 @@ console.log(meta);
 		f.addEventListener('change', function(evt) {
 			for(var k in evt.target.files) {
 				if(new String(evt.target.files[k]) != "[object File]") { continue; }
+
+				/*
+				var worker = new Worker('./lib/raid2x/raid2x.js');
+				worker.addEventListener("message", function (oEvent) {
+					//return progress
+					console.log(oEvent.data);
+				}, false);
+
+				var job = {
+					action: 'upload',
+					file: evt.target.files[k],
+					pathShard: '/shard/',
+					pathMeta: '/dataset/meta/',
+				}
+
+				worker.postMessage(job);
+				*/
+
 				var r2x = new Raid2X();
 				r2x.readFile(evt.target.files[k], function(e, r) {
 					$scope.files[r.attr.hash] = r;
 					postShard(r);
-console.log(r.getMeta(true))
 				});
 			}
 		}, false);

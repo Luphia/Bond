@@ -38,12 +38,28 @@ btoa(String.fromCharCode.apply(null, uint8Array))
 Base64 to Uint8Array
 new Uint8Array(atob(base64).split("").map(function(c) {return c.charCodeAt(0); }));
  */
+
+
+/* for web worker
+self.addEventListener('message', function(e) {
+	console.log(e.data);
+	var r2x = new Raid2X();
+	r2x.readFile(e.data.file), function() {
+		r2x.uploadAll(e.data.pathShard, function() {
+			var meta = r2x.getMeta();
+			console.log("save meta");
+		});
+	};
+}, false);
+*/
+
 var Raid2X = (function() {
 var duplicateCount = 5;
-var minSliceCount = 45;
+var minSliceCount = 25;
 var minSize = 512;
 var defaultSize = 4 * 1024 * 1024;
 var defaultKeySize = 2048;
+var maxConnection = 3;
 var defaultEncryption = 'RSA';
 var CRCTable = (function() {
 	var c = 0, table = new Array(256);
@@ -74,8 +90,25 @@ var XOR = function(buff1, buff2) {
 	}
 	return new Uint8Array(res);
 };
+var bufferToBase64 = function(buffer) {
+	var s = "";
+	for(var i = 0; i < buffer.length;) {
+		s = "".concat(
+			s,
+			String.fromCharCode(buffer[i++]),
+			String.fromCharCode(buffer[i++]),
+			String.fromCharCode(buffer[i++]),
+			String.fromCharCode(buffer[i++]),
+			String.fromCharCode(buffer[i++]),
+			String.fromCharCode(buffer[i++]),
+			String.fromCharCode(buffer[i++]),
+			String.fromCharCode(buffer[i++])
+		);
+	}
+	return btoa(s);
+};
 var SHA1 = function(buffer) {
-	return forge.md.sha1.create().update(buffer).digest().toHex();
+	return new Rusha().digestFromBuffer(buffer);
 };
 var CRC32 = function(buffer) {
 	var b, crc, i, len, code;
@@ -139,11 +172,13 @@ Raid2X.prototype.init = function(data) {
 	this.attr.encShard = false;
 	this.attr.encFile = false;
 	this.attr.duplicate = false;
+	this.downloadConnection = 0;
+	this.uploadConnection = 0;
 	this.uploads = [];
 	this.lost = [];
 	this.binary = [];
 	this.shardList = [];
-	this.key = forge.pki.rsa;
+	//++this.key = forge.pki.rsa;
 
 	this.pointer = 0;
 
@@ -195,6 +230,7 @@ Raid2X.prototype.readFile = function(file, callback) {
 	var todo = 1;
 	var done = function() {
 		if(--todo == 0) {
+			self.setHash();
 			callback(false, self);
 		}
 	};
@@ -283,6 +319,7 @@ Raid2X.prototype.importBuffer = function(buffer) {
 
 	if(index > -1) {
 		this.binary[index] = buffer;
+		this.fixWith(hash);
 		return this.done(hash);
 	}
 
@@ -407,8 +444,8 @@ Raid2X.prototype.setHash = function(hash) {
 	if(typeof(hash) == "string" && hash.length > 0) {
 		this.attr.hash = hash;
 	}
-	else {
-		this.attr.hash = Raid2X.guid();
+	else if(this.binary.length > 0) {
+		this.attr.hash = this.genHash(this.binary);
 	}
 
 	return true;
@@ -549,7 +586,8 @@ Raid2X.prototype.getShardList = function(reset) {
 		if(new String(this.binary[0]) == "[object Uint8Array]") {
 			for(var i = 0; i < this.attr.sliceCount * 2; i++) {
 				if(!this.shardList[i]) {
-					this.shardList[i] = this.genHash(this.getShard(i));
+					var shard = this.getShard(i);
+					this.shardList[i] = this.genHash(shard);
 				}
 			}
 		}
@@ -558,8 +596,30 @@ Raid2X.prototype.getShardList = function(reset) {
 	return this.shardList;
 };
 Raid2X.prototype.genHash = function(buffer) {
-// sha1 + crc32
-	var hash = SHA1(buffer) + CRC32(buffer);
+	var hash;
+	var maxBuffer = 256 * 1024 * 1024;
+
+	if(Array.isArray(buffer)) {
+		var l = 0, p = 0;
+		var b;
+		for(var i = 0; i < buffer.length; i++) { l += buffer[i].length; }
+		if(l < maxBuffer) {
+			b = new Uint8Array(l);
+			for(var i = 0; i < buffer.length; i++) {
+				b.set(buffer[i], p);
+				p += buffer[i].length;
+			}
+
+			hash = SHA1(b) + CRC32(b);
+		}
+		else {
+			hash = Raid2X.guid();
+		}
+	}
+	else {
+		// sha1 + crc32
+		hash = SHA1(buffer) + CRC32(buffer);
+	}
 	return hash;
 };
 
@@ -675,17 +735,17 @@ Raid2X.prototype.nextShard = function(type) {
 	return this.getShard(this.pointer++, type);
 };
 
-Raid2X.prototype.done = function(hash) {
+Raid2X.prototype.done = function(hash, isUpload) {
 	if(!isNaN(hash) && hash >= 0) {
-		this.fixWith(hash);
+		// this.fixWith(hash);
 	}
 	else if(this.shardList.indexOf(hash) > -1 && this.uploads.indexOf(hash) == -1) {
 		this.uploads.push(hash);
 		this.lost.splice(this.lost.indexOf(hash), 1);
-		this.fixWith(hash);
+		// this.fixWith(hash);
 	}
 
-	return this.getProgress();
+	return this.getProgress(isUpload);
 };
 Raid2X.prototype.failed = function(hash) {
 	this.uploads.splice(this.uploads.indexOf(hash) , 1);
@@ -699,16 +759,16 @@ Raid2X.prototype.gone = function(hash) {
 
 	return this.getProgress();
 };
-Raid2X.prototype.getProgress = function() {
-	if(this.shardList.length > 0) {
+Raid2X.prototype.getProgress = function(isUpload) {
+	if(isUpload) {
 		if(this.attr.duplicate) { return this.uploads.length > 0? 1: 0; }
 
 		var complete = 0;
-		for(var i = 0; i < this.attr.sliceCount; i++) {
+		for(var i = 0; i < this.attr.sliceCount * 2; i++) {
 			if(this.uploads.indexOf( this.shardList[i] ) > -1) { complete++; }
 		}
 
-		return (complete / this.attr.sliceCount) || 0;
+		return (complete / this.attr.sliceCount / 2) || 0;
 	}
 	else {
 		var complete = 0;
@@ -757,30 +817,43 @@ Raid2X.prototype.fixWith = function(hash) {
 	if(index < this.attr.sliceCount) {
 		var p1 = index + 2;
 		var c1 = index + n;
-		groups.push([this.shardList[p1], this.shardList[c1]]);
+		//groups.push([this.shardList[p1], this.shardList[c1]]);
+		groups.push([p1, c1]);
 
 		var p2 = (index + n - 2) % n;
 		var c2 = p2 + n;
-		groups.push([this.shardList[p2], this.shardList[c2]]);
+		//groups.push([this.shardList[p2], this.shardList[c2]]);
+		groups.push([p2, c2]);
 	}
 	else {
 		var p1 = index - n;
 		var p2 = (index + 2) % n;
-		groups.push([this.shardList[p1], this.shardList[p2]]);
+		//groups.push([this.shardList[p1], this.shardList[p2]]);
+		groups.push(p1, p2);
 	}
 
 	for(var k in groups) {
 		// no need to fix check buffer
-		if(this.uploads.indexOf(groups[k][0]) > -1 && this.uploads.indexOf(groups[k][1]) == -1 && index >= this.attr.sliceCount) {
-			b2 = this.binary[ this.shardList.indexOf(groups[k][0]) ];
+		if(this.binary[groups[k][0]] && !this.binary[groups[k][1]] && index >= this.attr.sliceCount) {
+			b2 = this.binary[ groups[k][0] ];
 			b3 = XOR(b1, b2);
-			this.importBuffer(b3);
+
+			var info = this.genShardInfo(groups[k][1]);
+			var fb = new Uint8Array(b3.length, info.length);
+			fb.set(b3, 0);
+			fb.set(info, this.attr.sliceSize);
+			this.importBuffer(fb);
 		}
 
-		if(this.uploads.indexOf(groups[k][1]) > -1 && this.uploads.indexOf(groups[k][0]) == -1) {
-			b2 = this.binary[ this.shardList.indexOf(groups[k][1]) ];
+		if(!this.binary[groups[k][0]] && this.binary[groups[k][1]]) {
+			b2 = this.binary[ groups[k][1] ];
 			b3 = XOR(b1, b2);
-			this.importBuffer(b3);
+
+			var info = this.genShardInfo(groups[k][0]);
+			var fb = new Uint8Array(b3.length, info.length);
+			fb.set(b3, 0);
+			fb.set(info, this.attr.sliceSize);
+			this.importBuffer(fb);
 		}
 	}
 };
@@ -842,6 +915,135 @@ Raid2X.prototype.save = function() {
 	window.URL.revokeObjectURL(url);
 	document.body.removeChild(a);
 	delete a;
+};
+
+// upload for web UI
+Raid2X.prototype.addUploadList = function(target) {
+	this.uploadQueue = this.uploadQueue || [];
+	this.uploadQueue.push(target);
+	return this;
+};
+Raid2X.prototype.startUpload = function() {
+	var self = this;
+	if(!this.uploadQueue || this.uploadQueue.length == 0) { return false; }
+	if(this.uploadConnection >= maxConnection) { return false; }
+
+	var target = this.uploadQueue.pop();
+	var path = target.path;
+	var shard = this.getShard(target.n,'blob');
+	var hash = this.getShard(target.n, 'hash');
+	if(!shard) { return false; }
+
+	this.uploadConnection++;
+	var formData = new FormData();
+	formData.append("file", shard);
+
+	var request = new XMLHttpRequest();
+	request.onload = function() {
+		self.uploadConnection--;
+		if(self.uploadQueue.length > 0) {
+			self.startUpload();
+		}
+
+		if(typeof(target.callback) == 'function') {
+			target.callback(undefined, self.done(hash, true));
+		}
+	}
+	request.open("POST", path);
+	request.send(formData);
+};
+Raid2X.prototype.upload = function(path, n, callback) {
+	// single
+	var target = {path: path, n: n, callback: callback};
+	this.addUploadList(target);
+	// multiple
+
+	this.startUpload();
+};
+Raid2X.prototype.uploadAll = function(path, callback) {
+
+	var self = this;
+
+	var addUpload = function() {
+		var n = self.pointer;
+		var h = self.nextShard('hash');
+		var p = path + h;
+		self.upload(p, n, function(e, d) {
+			addUpload();
+			if(typeof(callback) == 'function') {
+				callback(undefined, d);
+			}
+		});
+	};
+	addUpload();
+
+	return this;
+};
+
+// download for web UI
+Raid2X.prototype.addDownloadList = function(target) {
+	this.downloadQueue = this.downloadQueue || [];
+	this.downloadQueue.push(target);
+	return this;
+};
+Raid2X.prototype.startDownload = function() {
+	var self = this;
+	if(!this.downloadQueue || this.downloadQueue.length == 0) { return false; }
+	if(this.downloadConnection >= maxConnection) { return false; }
+
+	var target = this.downloadQueue.pop();
+	var path = target.path;
+
+	this.downloadConnection++;
+	var fp = target.path;
+
+	var xhr = new XMLHttpRequest();
+	xhr.open('GET', fp, true);
+	xhr.responseType = 'blob';
+
+	xhr.onload = function(e) {
+		self.downloadConnection--;
+		if(self.downloadQueue.length > 0) {
+			self.startDownload();
+		}
+
+		var file = new Blob([xhr.response]);
+		self.importFile(file, function(e, d) {
+			if(typeof(target.callback) == 'function') {
+				target.callback(undefined, d);
+			}
+		});
+	}
+	xhr.send();
+};
+Raid2X.prototype.download = function(path, n, callback) {
+	// single
+	var target = {path: path, n: n, callback: callback};
+	this.addDownloadList(target);
+	// multiple
+
+	this.startDownload();
+};
+Raid2X.prototype.downloadAll = function(path, callback) {
+	var self = this;
+
+	var addDownload = function() {
+		var n = self.pointer;
+		if(n >= self.attr.sliceCount) { return false; }
+
+		var h = self.shardList[n];
+		var p = path + h;
+		self.pointer++;
+		self.download(p, n, function(e, d) {
+			addDownload();
+			if(typeof(callback) == 'function') {
+				callback(undefined, d);
+			}
+		});
+	};
+	addDownload();
+
+	return this;
 };
 
 return Raid2X;

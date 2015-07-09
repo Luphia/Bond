@@ -253,9 +253,34 @@ console.log(meta);
 		var r2x = new Raid2X(meta);
 		$scope.files[meta.hash] = r2x;
 
+		var pn = document.createElement('div');
+		var p1 = document.createElement('div');
+		var p2 = document.createElement('span');
+		var p3 = document.createElement('div');
+		var p4 = document.createElement('div');
+		var p5 = document.createElement('div');
+
+		pn.setAttribute("class", "progress");
+		p1.setAttribute("class", "progress c100 p0 dark big blue");
+		p2.innerHTML = "0%";
+		p3.setAttribute("class", "slice");
+		p4.setAttribute("class", "bar");
+		p5.setAttribute("class", "fill");
+
+		pn.appendChild(p1)
+		p1.appendChild(p2);
+		p1.appendChild(p3);
+		p3.appendChild(p4);
+		p3.appendChild(p5);
+		document.body.appendChild(pn);
+
 		r2x.downloadAll("/shard/", function(ee, dd) {
+			var p = parseInt(dd * 100);
+			p1.setAttribute("class", "dark big blue c100 p" + p);
+			p2.innerHTML = p + "%";
+
 			if(dd == 1) {
-				if(/\.mp4$/.test(r2x.attr.name)) {
+				if(/^video/.test(r2x.attr.type)) {
 					var url = r2x.toURL();
 					var video = document.createElement('video');
 					video.setAttribute("src", url);
@@ -265,10 +290,9 @@ console.log(meta);
 				}
 				else {
 					r2x.save();
-				}	
-			}
-			else {
-				console.log(dd);
+				}
+
+				document.body.removeChild(pn);
 			}
 		});
 	};

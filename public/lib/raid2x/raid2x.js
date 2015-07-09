@@ -258,6 +258,7 @@ Raid2X.prototype.readFile = function(file, callback) {
 	var reader = new FileReader();
 
 	self.setName(file.name);
+	self.setType(file.type);
 	self.setSize(file.size);
 	self.parseFile();
 
@@ -396,6 +397,7 @@ Raid2X.prototype.set = function(option) {
 	this.setPrivateKey(option.privateKey);
 
 	this.setName(option.name);
+	this.setType(option.type);
 	this.setSize(option.size);
 	this.setHash(option.hash);
 	this.setShardList(option.shardList);
@@ -465,6 +467,13 @@ Raid2X.prototype.setPrivateKey = function(key) {
 Raid2X.prototype.setName = function(name) {
 	if(typeof(name) == "string" && name.length > 0) {
 		this.attr.name = name;
+	}
+
+	return true;
+};
+Raid2X.prototype.setType = function(type) {
+	if(typeof(type) == "string" && type.length > 0) {
+		this.attr.type = type;
 	}
 
 	return true;
@@ -543,6 +552,7 @@ Raid2X.prototype.decrypt = function(buffer) {
 Raid2X.prototype.getMeta = function(simplify) {
 	var meta = {};
 	meta.name = this.attr.name;
+	meta.type = this.attr.type;
 	meta.size = this.attr.size;
 	meta.hash = this.attr.hash;
 	

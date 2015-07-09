@@ -128,6 +128,7 @@ var s;
 			console.log(d);
 
 			if(d < 1) { return false; }
+			else { console.log(d); }
 			var copy;
 			var meta = r2x.getMeta();
 
@@ -192,6 +193,7 @@ console.log(meta);
 	var selectFile = function() {
 		var f = document.createElement("input");
 		f.setAttribute("type", "file");
+		f.setAttribute("multiple", true);
 		f.setAttribute("style", "display: none");
 		document.body.appendChild(f);
 		f.addEventListener('change', function(evt) {

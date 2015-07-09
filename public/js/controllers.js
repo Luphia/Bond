@@ -122,27 +122,18 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		$scope.newMessage = '';
 		gotoBottom();
 	};
-var s;
+
 	var postShard = function(r2x) {
-		r2x.uploadAll("/shard/", function(e, d) {
+		$scope.newMessage = 'File: ' + r2x.attr.name;
+		sendMessage();
+
+		r2x.sendAll("/shard/", function(e, d) {
 			console.log(d);
-
 			if(d < 1) { return false; }
-			else { console.log(d); }
 			var copy;
-			var meta = r2x.getMeta();
+			var meta = r2x.getMeta(true);
 
-			console.log(meta);
-
-			copy = new Raid2X(meta);
-			copy.downloadAll("/shard/", function(ee, dd) {
-				if(dd == 1) {
-					copy.save();
-				}
-				else {
-					console.log(dd);
-				}
-			});
+			$socket.emit('meta', meta);
 		});
 
 		/*
@@ -262,53 +253,24 @@ console.log(meta);
 		var r2x = new Raid2X(meta);
 		$scope.files[meta.hash] = r2x;
 
-		//++ something whrong
-		for(var i = 0; i < meta.sliceCount; i++) {
-			var fp = '/shard/' + meta.shardList[i];
-
-			var xhr = new XMLHttpRequest();
-			xhr.open('GET', fp, true);
-			xhr.responseType = 'blob';
-
-			xhr.onload = function(e) {
-				var file = new Blob([xhr.response]);
-				r2x.importFile(file, function(e, d) {
-					if(d < 1) {
-						console.log('%d%', d * 100);
-					}
-					else {
-						var url = r2x.toURL();
-						var video = document.createElement('video');
-						video.setAttribute("src", url);
-						video.setAttribute("controls", "");
-						video.setAttribute("autoplay", "");
-						document.body.appendChild(video);
-					}
-				});
+		r2x.downloadAll("/shard/", function(ee, dd) {
+			if(dd == 1) {
+				if(/\.mp4$/.test(r2x.attr.name)) {
+					var url = r2x.toURL();
+					var video = document.createElement('video');
+					video.setAttribute("src", url);
+					video.setAttribute("controls", "");
+					video.setAttribute("autoplay", "");
+					document.body.appendChild(video);
+				}
+				else {
+					r2x.save();
+				}	
 			}
-			xhr.send();
-			/*
-			$http.get('/shard/' + meta.shardList[i]).success(function(d, s, h, c) {
-				var file = new Blob(d);
-
-				r2x.importFile(file, function(e, d) {
-					if(d < 1) {
-						console.log('%d%', d * 100);
-					}
-					else {
-						var url = r2x.toURL();
-						var video = document.createElement('video');
-						video.setAttribute("src", url);
-						video.setAttribute("controls", "");
-						video.setAttribute("autoplay", "");
-						document.body.appendChild(video);
-					}
-				});
-
-
-			});
-			*/
-		}
+			else {
+				console.log(dd);
+			}
+		});
 	};
 	var addShard = function(hash, shard) {
 		var r2x = $scope.files[hash];

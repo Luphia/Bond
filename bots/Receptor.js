@@ -49,6 +49,10 @@ Receptor.prototype.init = function(config) {
 	if (!fs.existsSync(upload)){
 		fs.mkdirSync(upload);
 	}
+	var shards = "./shards/";
+	if (!fs.existsSync(shards)){
+		fs.mkdirSync(shards);
+	}
 	var logs = "./logs/";
 	if (!fs.existsSync(logs)){
 		fs.mkdirSync(logs);
@@ -96,7 +100,7 @@ Receptor.prototype.init = function(config) {
 	this.app.use(express.static(path.join(__dirname, '../public')));
 
 	this.app.use(this.router);
-	this.app.use('/shard', express.static(path.join(__dirname, '../uploads')));
+	this.app.use('/shard', express.static(path.join(__dirname, '../shards')));
 	this.app.use(this.returnData);
 
 	this.ctrl = [];

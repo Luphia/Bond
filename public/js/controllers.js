@@ -123,49 +123,42 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		gotoBottom();
 	};
 
-	var postShard = function(r2x) {
-		$scope.newMessage = 'File: ' + r2x.attr.name;
+	var postFile = function(file) {
+		var meta = Raid2X.getMeta(file);
+		$scope.newMessage = 'File: ' + meta.name;
 		sendMessage();
+		$socket.emit('meta', meta);
+		console.log(meta);//--
 
-		r2x.sendAll("/shard/", function(e, d) {
-			console.log(d);
-			if(d < 1) { return false; }
-			var copy;
-			var meta = r2x.getMeta(true);
+		Raid2X.quickSend(file, "/shard/", meta, function(e, d) {
+			if(d.progress == 1) {
+				var r2x = new Raid2X(d.meta);
+				var meta = r2x.getMeta();
+				$http.post('/dataset/files/', meta)
+					.success(function(data, status, headers, config) {
+						$socket.emit('new file message', meta);
+					})
+					.error(function(data, status, headers, config) {
+					});
+			}
 
-			$socket.emit('meta', meta);
+			delete d.meta;
+			console.log('emit shard');
+			console.log(d);//--
+			$socket.emit('shard', d);
 		});
 
-		/*
-s = new Date();//--
-		var hash = r2x.getShard(r2x.pointer, 'hash');
-		var shard = r2x.nextShard('blob');
 
-		if(shard) {
-			var formData = new FormData();
-			formData.append("file", shard);
-			var request = new XMLHttpRequest();
-			request.onload = function() {
-				postShard(r2x);
-console.log("cost: %d", (new Date() - s));//--
-			}
-			request.open("POST", "/shard/" + hash);
-			request.send(formData);
-		}
-		else if(!r2x.write) {
-			r2x.write = true;
-			var meta = r2x.getMeta();
-			$http.post('/dataset/meta/', meta).success(function(d, s, h, c) {
-				var url = r2x.toURL();
-				var video = document.createElement('video');
-				video.setAttribute("src", url);
-				video.setAttribute("controls", "");
-				video.setAttribute("autoplay", "");
-				document.body.appendChild(video);
-			});
-console.log(meta);
-			$socket.emit('meta', meta);
-		}
+		/*
+		$scope.newMessage = 'File: ' + r2x.attr.name;
+		sendMessage();
+		var meta = r2x.getMeta(true);
+		$socket.emit('meta', meta);
+
+		r2x.sendAll("/shard/", function(e, d) {
+			console.log(d);//--
+			$socket.emit('shard', d);
+		});
 		*/
 	};
 
@@ -190,29 +183,15 @@ console.log(meta);
 		f.addEventListener('change', function(evt) {
 			for(var k in evt.target.files) {
 				if(new String(evt.target.files[k]) != "[object File]") { continue; }
+				postFile(evt.target.files[k]);
 
 				/*
-				var worker = new Worker('./lib/raid2x/raid2x.js');
-				worker.addEventListener("message", function (oEvent) {
-					//return progress
-					console.log(oEvent.data);
-				}, false);
-
-				var job = {
-					action: 'upload',
-					file: evt.target.files[k],
-					pathShard: '/shard/',
-					pathMeta: '/dataset/meta/',
-				}
-
-				worker.postMessage(job);
-				*/
-
 				var r2x = new Raid2X();
 				r2x.readFile(evt.target.files[k], function(e, r) {
 					$scope.files[r.attr.hash] = r;
-					postShard(r);
+					postFile(r);
 				});
+				*/
 			}
 		}, false);
 		f.click();
@@ -274,49 +253,46 @@ console.log(meta);
 		p3.appendChild(p5);
 		document.body.appendChild(pn);
 
-		r2x.downloadAll("/shard/", function(ee, dd) {
-			var p = parseInt(dd * 100);
-			p1.setAttribute("class", "dark big blue c100 p" + p);
-			p2.innerHTML = p + "%";
+		r2x.nodes = {
+			pn: pn,
+			p1: p1,
+			p2: p2,
+			p3: p3,
+			p4: p4,
+			p5: p5
+		};
+	};
+	var addShard = function(hash, path) {
+		var r2x = $scope.files[hash];
+		if(!r2x) { console.log("no such meta: %s", hash); return false; }
+		console.log("download: %s", path);
+		r2x.addDownloadList({
+			path: path,
+			callback: function(e, d) {
+				console.log("%d %", d*100);
+				var p = parseInt(d * 100);
+				r2x.nodes.p1.setAttribute("class", "dark big blue c100 p" + p);
+				r2x.nodes.p2.innerHTML = p + "%";
 
-			if(dd == 1) {
-				if(/^video/.test(r2x.attr.type)) {
-					var url = r2x.toURL();
-					var video = document.createElement('video');
-					video.setAttribute("src", url);
-					video.setAttribute("controls", "");
-					video.setAttribute("autoplay", "");
-					document.body.appendChild(video);
-				}
-				else {
-					r2x.save();
-				}
+				if(p == 100) {
+					if(/^video/.test(r2x.attr.type)) {
+						var url = r2x.toURL();
+						var video = document.createElement('video');
+						video.setAttribute("src", url);
+						video.setAttribute("controls", "");
+						video.setAttribute("autoplay", "");
+						document.body.appendChild(video);
+					}
+					else {
+						r2x.save();
+					}
 
-				document.body.removeChild(pn);
+					document.body.removeChild(r2x.nodes.pn);
+					delete r2x.nodes;
+				}
 			}
 		});
-	};
-	var addShard = function(hash, shard) {
-		var r2x = $scope.files[hash];
-		var size = r2x.attr.sliceSize + 8;
-		var arr = new Array(size);
-		for(var i = 0; i < arr.length; i++) {
-			arr[i] = shard[i];
-		}
-		shard = new Uint8Array(arr); 
-		var progress = r2x.importShard(shard);
-		console.log("%d % - %d", progress * 100, new Date() - s);
-		if(progress < 1) {
-			// $socket.emit('requestShard', {hash: hash, i: r2x.getDownloadPlan()[0]});
-		}
-		else {
-			var url = r2x.toURL();
-			var video = document.createElement('video');
-			video.setAttribute("src", url);
-			video.setAttribute("controls", "");
-			video.setAttribute("autoplay", "");
-			document.body.appendChild(video);
-		}
+		r2x.startDownload();
 	};
 
 	var listen = {"channel": "default", "timestamp": new Date() * 1};
@@ -370,23 +346,8 @@ console.log(meta);
 
 	// Whenever the server emits 'new file message', update the chat body
 	$socket.on('new file message', function (data) {
-		var file = data.message;
-		// ArrayBuffer -> blob
-		file.blob = new Blob([file.blob]);
-
-		var a = document.createElement("a");
-		document.body.appendChild(a);
-
-		a.href = createObjectURL(file.blob);
-		a.download = file.name;
-		a.click();
-
-		data.type = 'text';
-		data.message = "Sends '" + file.name + "' and it will be download\
-		ed automatically";
-
-		addMessage(data);
-		gotoBottom();
+		//++ here comes new file
+		console.log(data);
 	}).bindTo($scope);
 
 	// Whenever the server emits 'user joined', log it in the chat body
@@ -417,7 +378,7 @@ console.log(meta);
 		addMeta(data);
 	}).bindTo($scope);
 	$socket.on('shard', function (data) {
-		addShard(data.hash, data.shard);
+		addShard(data.hash, data.path);
 	}).bindTo($scope);
 	$socket.on('requestShard', function (data) {
 		sendShard(data.hash, data.i);

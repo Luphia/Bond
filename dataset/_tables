@@ -1,9 +1,0 @@
-{"k":"0000000078","o":"0000000265","v":"001"}
-{"_id":2,"_uid":2,"_dt":1436758509275,"_s":"6f931e1b2e6ccf45fb8aa6ab4f7dc51c"}
-{"columns":{"name":"String","type":"String","size":"Number","hash":"String","encFile":"Boolean","encShard":"Boolean","sliceCount":"Number","sliceSize":"Number","shardList":"JSON","duplicate":"Boolean"},"name":"files","max_serial_num":2,"_id":{"$wrap":"$oid","v":2}}
-{"k":"0000000078","o":"0000000265","v":"001"}
-{"_id":2,"_uid":2,"_dt":1436778284662,"_s":"c896ef1a6bcf84d34b772d95980ed088"}
-{"columns":{"name":"String","type":"String","size":"Number","hash":"String","encFile":"Boolean","encShard":"Boolean","sliceCount":"Number","sliceSize":"Number","shardList":"JSON","duplicate":"Boolean"},"name":"files","max_serial_num":3,"_id":{"$wrap":"$oid","v":2}}
-{"k":"0000000078","o":"0000000265","v":"001"}
-{"_id":2,"_uid":2,"_dt":1436778298486,"_s":"d9578a8f5d03341c054eb823d0b1a0f2"}
-{"columns":{"name":"String","type":"String","size":"Number","hash":"String","encFile":"Boolean","encShard":"Boolean","sliceCount":"Number","sliceSize":"Number","shardList":"JSON","duplicate":"Boolean"},"name":"files","max_serial_num":4,"_id":{"$wrap":"$oid","v":2}}

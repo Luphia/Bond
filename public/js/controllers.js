@@ -65,7 +65,7 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 			}
 		}
 		else if(typeof file == 'object') {
-			var r2x = new Raid2X(file);
+			var r2x = typeof file.getMeta == 'function'? file: new Raid2X(file);
 			r2x.id = file._id;
 
 			var hash = file.hash;
@@ -233,6 +233,8 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 					})
 					.error(function(data, status, headers, config) {
 					});
+
+				$scope.addFile(r2x);
 			}
 
 			delete d.meta;

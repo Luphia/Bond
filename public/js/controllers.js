@@ -11,7 +11,100 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	];
 
 	$scope.end = false;
-	$scope.files = {};
+	$scope.fileIndex = [];
+	$scope.fileId = [];
+	$scope.files = [];
+
+	$scope.requestFileList = function() {
+		if($scope.fileId.length > 0) {
+			var msg = {
+				from: Math.min.apply(null, $scope.fileId),
+				limit: 20
+			};
+
+			$socket.emit('file list', msg);
+		}
+		else {
+			var msg = {
+				limit: 20
+			};
+
+			$socket.emit('file list', msg);
+		}
+	};
+
+	$scope.perpendFile = function(file, replace) {
+		if(Array.isArray(file)) {
+			for(var i = file.length-1; i >= 0; i--) {
+				$scope.perpendFile(file, replace);
+			}
+		}
+		else if(typeof file == 'object') {
+			var r2x = new Raid2X(file);
+			r2x.id = file._id;
+
+			var hash = file.hash;
+			if($scope.fileIndex.indexOf(hash) == -1) {
+				$scope.fileIndex = [hash].concat($scope.fileIndex);
+				$scope.fileId = [r2x.id].concat($scope.fileId);
+				$scope.files = [r2x].concat($scope.files);
+			}
+			else if(replace) {
+				var index = $scope.fileIndex.indexOf(hash);
+				$scope.fileId[index] = r2x.id;
+				$scope.files[index] = r2x;
+			}
+
+			return r2x;
+		}
+	};
+	$scope.addFile = function(file, replace) {
+		if(Array.isArray(file)) {
+			for(var k in file) {
+				$scope.addFile(file[k], replace);
+			}
+		}
+		else if(typeof file == 'object') {
+			var r2x = new Raid2X(file);
+			r2x.id = file._id;
+
+			var hash = file.hash;
+			if($scope.fileIndex.indexOf(hash) == -1) {
+				$scope.fileIndex.push(hash);
+				$scope.fileId.push(r2x.id);
+				$scope.files.push(r2x);
+			}
+			else if(replace) {
+				var index = $scope.fileIndex.indexOf(hash);
+				$scope.fileId = r2x.id;
+				$scope.files[index] = r2x;
+			}
+
+			return r2x;
+		}
+	};
+	$scope.getFile = function(hash) {
+		var f = false;
+		var index = $scope.fileIndex.indexOf(hash);
+		if(index > -1) {
+			f = $scope.files[index];
+		}
+
+		return f;
+	};
+	$scope.download = function(r2x) {
+		r2x.downloadAll('/shard/', function(e, d) {
+			if(d == 1) {
+				if(/^video/.test(r2x.attr.type)) {
+					showVideo(r2x);
+				}
+				else {
+					r2x.save();
+				}
+			}
+		});
+	};
+
 	var s;
 
 	$scope.join = function(ch) {
@@ -163,13 +256,17 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	};
 
 	var sendShard = function(hash, i) {
+		/*
 		$socket.emit('shard', {
 			hash: hash,
-			shard: $scope.files[hash].getShard(i)
+			shard: $scope.getFile(hash).getShard(i)
 		});
+		*/
 	};
 	var requestShard = function(data) {
+		/* 
 		$socket.emit('shard', sendShard(data.hash, data.i));
+		*/
 	};
 
 	$scope.sendMessage = sendMessage;
@@ -188,7 +285,7 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 				/*
 				var r2x = new Raid2X();
 				r2x.readFile(evt.target.files[k], function(e, r) {
-					$scope.files[r.attr.hash] = r;
+					$scope.getFile(r.attr.hash) = r;
 					postFile(r);
 				});
 				*/
@@ -229,8 +326,7 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 
 	var addMeta = function(meta) {
 		s = new Date();
-		var r2x = new Raid2X(meta);
-		$scope.files[meta.hash] = r2x;
+		var r2x = $scope.addFile(meta);
 
 		var pn = document.createElement('div');
 		var p1 = document.createElement('div');
@@ -262,8 +358,31 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 			p5: p5
 		};
 	};
+	var showVideo = function(r2x) {
+		var url = r2x.toURL();
+
+		var box = document.createElement('div');
+		box.setAttribute("class", "box");
+
+		var container = document.createElement('div');
+		container.setAttribute("class", "container");
+
+		var close = document.createElement('div');
+		close.setAttribute("class", "close fa fa-times");
+		close.onclick = function() { document.body.removeChild(box); };
+
+		var video = document.createElement('video');
+		video.setAttribute("src", url);
+		video.setAttribute("controls", "");
+		video.setAttribute("autoplay", "");
+
+		box.appendChild(container);
+		box.appendChild(close);
+		container.appendChild(video);
+		document.body.appendChild(box);
+	};
 	var addShard = function(hash, path) {
-		var r2x = $scope.files[hash];
+		var r2x = $scope.getFile(hash);
 		if(!r2x) { console.log("no such meta: %s", hash); return false; }
 		console.log("download: %s", path);
 		r2x.addDownloadList({
@@ -276,12 +395,7 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 
 				if(p == 100) {
 					if(/^video/.test(r2x.attr.type)) {
-						var url = r2x.toURL();
-						var video = document.createElement('video');
-						video.setAttribute("src", url);
-						video.setAttribute("controls", "");
-						video.setAttribute("autoplay", "");
-						document.body.appendChild(video);
+						showVideo(r2x);
 					}
 					else {
 						r2x.save();
@@ -319,6 +433,10 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	$scope.newMessage = '';
 
 	//var $socket = io();
+
+	// initial file list
+	$scope.requestFileList();
+
 	$socket.emit('add user', 'Somebody');	// --
 	$scope.loadMessage();
 	$socket.on('login', function (data) {
@@ -383,4 +501,7 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 	$socket.on('requestShard', function (data) {
 		sendShard(data.hash, data.i);
 	}).bindTo($scope);
+	$socket.on('file list', function(data) {
+		$scope.addFile(data.files);
+	});
 }]);

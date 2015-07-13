@@ -70,6 +70,14 @@ Kamato.directive('message', function($compile) {
 	}
 });
 
+Kamato.directive('file', function($compile) {
+	return {
+		restrict: 'E',
+		replace: true,
+		templateUrl: 'widgets/chat/template-file.html'
+	}
+});
+
 Kamato.directive('pin', function($compile) {
 	return {
 		restrict: 'E',

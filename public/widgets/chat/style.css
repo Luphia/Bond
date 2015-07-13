@@ -347,6 +347,30 @@
   transition: all 0.2s ease-out;
 }
 
+.ng-scope.chat .fileArea {
+  position: fixed;
+  left: 400px;
+  overflow: scroll;
+}
+.ng-scope.chat .fileArea .file {
+  overflow: auto;
+  margin: 5px;
+  cursor: pointer;
+}
+.ng-scope.chat .fileArea .file .icon {
+  display: block;
+  width: 50px;
+  height: 50px;
+  border-radius: 5px;
+  float: left;
+}
+.ng-scope.chat .fileArea .file .name {
+  color: #fff;
+  line-height: 50px;
+  padding-left: 5px;
+  float: left;
+}
+
 .progress {
   position: absolute;
   left: 50%;

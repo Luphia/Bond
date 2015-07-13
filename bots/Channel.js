@@ -43,6 +43,7 @@ Channel.prototype.untag = function(client) {
 };
 
 Channel.prototype.start = function() {
+	var db = this.db;
 	var io = this.io;
 
 	// usernames which are currently connected to the chat
@@ -98,6 +99,22 @@ Channel.prototype.start = function() {
 			socket.broadcast.emit('new file message', msg);
 
 			//self.send();
+		});
+
+		// get file list
+		socket.on('file list', function(data) {
+			var limit = data.limit || 20;
+			var from = data.from || 0;
+			var query = from > 0? 'where _id < ' + from + ' limit ' + limit: 'limit ' + limit;
+
+			db.listData('files', query, function(e, d) {
+				var msg = {
+					files: d
+				};
+
+				socket.emit('file list', msg);
+			});
+
 		});
 
 		// get channel history

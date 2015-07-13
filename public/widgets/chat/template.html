@@ -9,6 +9,11 @@
 			<input ng-model="newMessage" ng-keypress="keyMessage($event)" class="inputMessage" placeholder="I want to say ..." />
 			<i class="fa fa-paperclip fa-lg" ng-click="selectFile()"></i>
 			<button ng-click="sendMessage()">send</button>
-		<div>
+		</div>
+		<div class="fileArea">
+			<ul class="folder" style="width: {{windowWidth - 500}}px;">
+				<file ng-repeat="file in files" />
+			</ul>
+		</div>
 	</div>
 </div>

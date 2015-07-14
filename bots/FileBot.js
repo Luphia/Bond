@@ -102,15 +102,26 @@ Bot.prototype.postMeta = function (msg, callback) {
 	var result = new Result();
 	var meta = msg.body;
 	var r2x = new Raid2X(meta);
-	console.log(r2x);
+	var id;
+
+	var todo = 2;
+	var done = function() {
+		if(--todo == 0) {
+			self.db.putData("files", id, meta, function(e, d) {});
+		}
+	}
+	self.db.postData("files", meta, function(e, d) {
+		result.setResult(1);
+		id = d;
+		callback(false, result.toJSON());
+
+		done();
+	});
 	r2x.importAllFile(shardPath, function(e, d) {
 		r2x.genCheckBuffer(shardPath, function(e, d) {
 			meta.shardList = r2x.shardList;
 
-			self.db.postData("files", meta, function() {
-				result.setResult(1);
-				callback(false, result.toJSON());
-			});
+			done();
 		});
 	});
 

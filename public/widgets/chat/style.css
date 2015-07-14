@@ -350,7 +350,6 @@
 .ng-scope.chat .fileArea {
   position: fixed;
   left: 400px;
-  overflow: scroll;
 }
 .ng-scope.chat .fileArea .file {
   overflow: auto;

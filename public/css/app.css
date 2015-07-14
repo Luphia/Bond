@@ -35,7 +35,7 @@ div[ng-view] {
 	border-radius: 3px;
 }
 
-.container {
+.box .container {
 	padding: 20px;
 	position: relative;
 }
@@ -55,4 +55,49 @@ div[ng-view] {
 
 video {
 	width: 100%;
+}
+
+.progressArea {
+	position: fixed;
+	right: 10px;
+	bottom: 10px;
+}
+.progressArea .container {
+	position: relative;
+	overflow: auto;
+}
+.progressArea .container .progress {
+	margin: 5px;
+	background: rgba(100, 100, 100, .8);
+	color: #fff;
+	font-size: .8em;
+	width: 300px;
+	padding: 10px;
+	border-radius: 5px;
+}
+.progressArea .container .progress .description {
+	line-height: 2em;
+}
+.progressArea .container .progress .bar {
+	display: block;
+	height: 6px;
+	width: 90%;
+	background: #fff;
+	border-radius: 3px;
+	padding: 1px;
+}
+.progressArea .container .progress .bar .fill {
+	display: block;
+	height: 100%;
+	border-radius: 2px;
+	-webkit-transition: width .5s;
+	-webkit-transition-timing-function: ease-out;
+	transition: width .5s;
+	transition-timing-function: ease-out;
+}
+.progressArea .container .progress.upload .bar .fill {
+	background: #f80;
+}
+.progressArea .container .progress.download .bar .fill {
+	background: #8af;
 }

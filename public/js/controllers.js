@@ -10,12 +10,13 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		'#6699cc', '#aa88dd', '#ccbbff', '#d3aae7'
 	];
 	var pathShard = "/shard/";
-	var pathMeta = "/dataset/files/";
+	var pathMeta = "/r2x/";
 
 	$scope.end = false;
 	$scope.fileIndex = [];
 	$scope.fileId = [];
 	$scope.files = [];
+	$scope.progresses = [];
 
 	$scope.requestFileList = function() {
 		if($scope.fileId.length > 0) {
@@ -94,7 +95,18 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		return f;
 	};
 	$scope.download = function(r2x) {
+		var progress = {
+			description: "Download: " + r2x.attr.name,
+			progress: 0,
+			type: "download"
+		};
+
+		var i = $scope.progresses.push(progress) - 1;
+
 		r2x.downloadAll(pathShard, function(e, d) {
+			progress.progress = d;
+			$scope.$apply();
+
 			if(d == 1) {
 				if(/^video/.test(r2x.attr.type)) {
 					showVideo(r2x);
@@ -102,6 +114,9 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 				else {
 					r2x.save();
 				}
+
+				$scope.progresses.splice(i, 1);
+				$scope.$apply();
 			}
 		});
 	};
@@ -233,25 +248,41 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		$scope.newMessage = 'File: ' + file.name;
 		sendMessage();
 
+		var progress = {
+			description: "Upload: " + file.name,
+			progress: 0,
+			type: "upload"
+		};
+		var i = $scope.progresses.push(progress) - 1;
+
+		/* upload with check buffer (slower)
 		var r2x = new Raid2X();
 		r2x.readFile(file, function(e, d) {
 			r2x.uploadAll(pathShard, function(err, res) {
-				console.log(res);
+				progress.progress = res;
+				$scope.$apply();
+
 				if(res == 1) {
 					var meta = r2x.getMeta();
 					postMeta(meta);
 					$scope.addFile(r2x);
+
+					$scope.progresses.splice(i, 1);
+					$scope.$apply();
 				}
 			});
 		});
+		*/
 
 
-		/* upload faster
+		/* upload without check buffer (faster) */
 		var meta = Raid2X.getMeta(file);
 		$socket.emit('meta', meta);
-		console.log(meta);//--
 		
 		Raid2X.quickSend(file, pathShard, meta, function(e, d) {
+			progress.progress = d.progress;
+			$scope.$apply();
+
 			if(d.progress == 1) {
 				var r2x = new Raid2X(d.meta);
 				var meta = r2x.getMeta();
@@ -263,26 +294,14 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 					});
 
 				$scope.addFile(r2x);
+				$scope.progresses.splice(i, 1);
+				$scope.$apply();
 			}
 
 			delete d.meta;
-			console.log('emit shard');
-			console.log(d);//--
 			$socket.emit('shard', d);
 		});
-		*/
-
-		/*
-		$scope.newMessage = 'File: ' + r2x.attr.name;
-		sendMessage();
-		var meta = r2x.getMeta(true);
-		$socket.emit('meta', meta);
-
-		r2x.sendAll(pathShard, function(e, d) {
-			console.log(d);//--
-			$socket.emit('shard', d);
-		});
-		*/
+		
 	};
 
 	var sendShard = function(hash, i) {

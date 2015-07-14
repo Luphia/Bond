@@ -33,6 +33,7 @@
     "ncp": "^2.0.0",
     "npm": "^2.8.4",
     "promise": "^6.1.0",
+    "raid2x": "^0.1.4",
     "request": "^2.53.0",
     "serve-favicon": "^2.2.0",
     "socket.io": "^1.3.2",

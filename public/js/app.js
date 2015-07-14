@@ -85,3 +85,11 @@ Kamato.directive('pin', function($compile) {
 		templateUrl: 'widgets/chat/template-pin.html'
 	}
 });
+
+Kamato.directive('progress', function($compile) {
+	return {
+		restrict: 'E',
+		replace: true,
+		templateUrl: 'widgets/chat/template-progress.html'
+	}
+});

@@ -3,13 +3,16 @@ var ParentBot = require('./_SocketBot.js')
 ,	path = require('path')
 ,	util = require('util')
 ,	crypto = require('crypto')
-,	Result = require('../classes/Result.js');
+,	Raid2X = require('raid2x')
+,	Result = require('../classes/Result.js')
+,	shardPath = path.join(__dirname, '../shards/');
 
 var Bot = function (config) {
 	if (!config) config = {};
 	this.init(config);
 	this.path = [
-		{"method": "post", "path": "/shard/:hash"}
+		{"method": "post", "path": "/shard/:hash"},
+		{"method": "post", "path": "/r2x/"}
 	];
 };
 
@@ -20,9 +23,21 @@ Bot.prototype.init = function (config) {
 };
 
 Bot.prototype.exec = function (msg, callback) {
+	var path = msg.url;
+	if(/^\/shard\//.test(path)) {
+		this.postShard(msg, callback);
+	}
+	else if(/^\/r2x\//.test(path)) {
+		this.postMeta(msg, callback);
+	}
+	else {
+		callback(false, new Result().toJSON());
+	}
+};
+
+Bot.prototype.postShard = function (msg, callback) {
 	if(msg.blob) { msg = {"body": msg}; }
 
-	var shardPath = path.join(__dirname, '../shards/')
 	var result = new Result();
 	var response = !!msg.query.response;
 	var rs = 0;
@@ -64,6 +79,7 @@ Bot.prototype.exec = function (msg, callback) {
 				callback(false, result.toJSON());
 			}
 			else if(toChecked == 0) {
+				fs.unlink(oldname, function() {});
 				result.setData({
 					path: hash,
 					hash: d,
@@ -72,11 +88,31 @@ Bot.prototype.exec = function (msg, callback) {
 				callback(false, result.toJSON());
 			}
 			else {
+				fs.unlink(oldname, function() {});
 				console.log(tochecked);
 			}
 		});		
 	}
 
+	return true;
+};
+
+Bot.prototype.postMeta = function (msg, callback) {
+	var self = this;
+	var result = new Result();
+	var meta = msg.body;
+	var r2x = new Raid2X(meta);
+	console.log(r2x);
+	r2x.importAllFile(shardPath, function(e, d) {
+		r2x.genCheckBuffer(shardPath, function(e, d) {
+			meta.shardList = r2x.shardList;
+
+			self.db.postData("files", meta, function() {
+				result.setResult(1);
+				callback(false, result.toJSON());
+			});
+		});
+	});
 
 	return true;
 };

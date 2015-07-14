@@ -363,6 +363,10 @@
   height: 50px;
   border-radius: 5px;
   float: left;
+  font-size: 2.5em;
+  color: #fff;
+  text-align: center;
+  line-height: 50px;
 }
 .ng-scope.chat .fileArea .file .name {
   color: #fff;

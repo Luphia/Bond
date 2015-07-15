@@ -46,6 +46,6 @@ for(var k in bots) {
 	receptor.registPath(bots[k].path, bots[k].name)
 }
 
-channel.setApp( receptor.http );
+channel.setApp( receptor.http, receptor.https );
 channel.db = ecdb;
 channel.start();

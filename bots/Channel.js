@@ -11,8 +11,11 @@ Channel.prototype.init = function(config) {
 
 };
 
-Channel.prototype.setApp = function(app) {
-	this.io = require('socket.io').listen(app, {});
+Channel.prototype.setApp = function(server, secureServer) {
+	var io = require('socket.io');
+	
+	if(server) { this.io = io.listen(server); }
+	if(secureServer) { io.listen(secureServer); }
 };
 
 Channel.prototype.tag = function(client, tag) {

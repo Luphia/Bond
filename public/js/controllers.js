@@ -105,17 +105,24 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 
 		r2x.downloadAll(pathShard, function(e, d) {
 			progress.progress = d;
-			$scope.$apply();
 
 			if(d == 1) {
-				if(/^video/.test(r2x.attr.type)) {
-					showVideo(r2x);
-				}
-				else {
-					r2x.save();
-				}
+				setTimeout(function() {
+					if(/^video/.test(r2x.attr.type)) {
+						showVideo(r2x);
+					}
+					else if(/^image/.test(r2x.attr.type)) {
+						showImage(r2x);
+					}
+					else {
+						r2x.save();
+					}
 
-				$scope.progresses.splice(i, 1);
+					$scope.progresses.splice(i, 1);
+					$scope.$apply();
+				}, 500);
+			}
+			else {
 				$scope.$apply();
 			}
 		});
@@ -424,6 +431,27 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		video.setAttribute("src", url);
 		video.setAttribute("controls", "");
 		video.setAttribute("autoplay", "");
+
+		box.appendChild(container);
+		box.appendChild(close);
+		container.appendChild(video);
+		document.body.appendChild(box);
+	};
+	var showImage = function(r2x) {
+		var url = r2x.toURL();
+
+		var box = document.createElement('div');
+		box.setAttribute("class", "box");
+
+		var container = document.createElement('div');
+		container.setAttribute("class", "container");
+
+		var close = document.createElement('div');
+		close.setAttribute("class", "close fa fa-times");
+		close.onclick = function() { document.body.removeChild(box); };
+
+		var video = document.createElement('img');
+		video.setAttribute("src", url);
 
 		box.appendChild(container);
 		box.appendChild(close);

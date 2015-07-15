@@ -89,7 +89,6 @@ Receptor.prototype.init = function(config) {
 	});
 
 	// if has pxf -> create https service
-
 	if(fs.existsSync(pathCert)) {
 		this.pfx = fs.readFileSync(pathCert);
 		this.pfxpw = fs.readFileSync(pathPw);
@@ -206,6 +205,10 @@ Receptor.prototype.startServer = function(port, httpsPort) {
 Receptor.prototype.stop = function() {
 	Receptor.super_.prototype.stop.apply(this);
 	this.http.close();
+
+	if(this.pfx) {
+		this.https.close();
+	}
 };
 
 Receptor.prototype.filter = function(req, res, next) {

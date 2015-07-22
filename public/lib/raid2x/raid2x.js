@@ -268,8 +268,7 @@ Raid2X.quickSend = function(file, url, m, cb) {
 	meta.url = url;
 	meta.uploads = [];
 	meta.shardList = [];
-
-	this.sendPartialFile(file, 0, meta, callback);
+	meta.restart = this.sendPartialFile(file, 0, meta, callback);
 
 	return meta;
 };

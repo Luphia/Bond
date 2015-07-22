@@ -4,8 +4,7 @@ var ParentBot = require('./_SocketBot.js')
 ,	util = require('util')
 ,	crypto = require('crypto')
 ,	Raid2X = require('raid2x')
-,	Result = require('../classes/Result.js')
-,	shardPath = path.join(__dirname, '../shards/');
+,	Result = require('../classes/Result.js');
 
 var Bot = function (config) {
 	if (!config) config = {};
@@ -20,6 +19,14 @@ util.inherits(Bot, ParentBot);
 
 Bot.prototype.init = function (config) {
 	Bot.super_.prototype.init.call(this, config);
+
+	this.homePath = path.join(__dirname, '../');
+	this.shardPath = path.join(__dirname, '../shards/');
+	try {
+		this.homePath = this.config.path.home;
+		this.shardPath = this.config.path.shards;
+	}
+	catch(e) {}
 };
 
 Bot.prototype.exec = function (msg, callback) {
@@ -43,12 +50,13 @@ Bot.prototype.postShard = function (msg, callback) {
 	var rs = 0;
 	var toChecked = 0;
 
+
 	for(var key in msg.files) {
 		toChecked ++;
 
 		var hash = msg.params.hash;
-		var oldname = path.join(__dirname, '../' + msg.files[key]["path"]);
-		var newname = path.join(shardPath, hash);
+		var oldname = msg.files[key]["path"];
+		var newname = path.join(this.shardPath, hash);
 
 		var s = fs.ReadStream(oldname);
 		var shasum = crypto.createHash('sha1');
@@ -117,8 +125,8 @@ Bot.prototype.postMeta = function (msg, callback) {
 
 		done();
 	});
-	r2x.importAllFile(shardPath, function(e, d) {
-		r2x.genCheckBuffer(shardPath, function(e, d) {
+	r2x.importAllFile(this.shardPath, function(e, d) {
+		r2x.genCheckBuffer(this.shardPath, function(e, d) {
 			meta.shardList = r2x.shardList;
 
 			done();

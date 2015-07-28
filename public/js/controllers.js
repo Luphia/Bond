@@ -9,8 +9,12 @@ KamatoControllers.controller('ChatCtrl', ['$scope', '$compile', '$window', '$rou
 		'#aadd88', '#78bb50', '#c8f095', '#7be8c4',
 		'#6699cc', '#aa88dd', '#ccbbff', '#d3aae7'
 	];
+	var allocator = "http://laria.space/track/";
 	var pathShard = "/shard/";
 	var pathMeta = "/r2x/";
+	BorgRing.getAllocator(allocator, function(e, d) {
+		if(typeof d == 'function') { pathShard = d; }
+	})
 
 	$scope.end = false;
 	$scope.fileIndex = [];

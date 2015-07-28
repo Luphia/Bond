@@ -112,26 +112,29 @@ Bot.prototype.postMeta = function (msg, callback) {
 	var r2x = new Raid2X(meta);
 	var id;
 
+	/*
 	var todo = 2;
 	var done = function() {
 		if(--todo == 0) {
 			self.db.putData("files", id, meta, function(e, d) {});
 		}
 	}
+	*/
 	self.db.postData("files", meta, function(e, d) {
 		result.setResult(1);
 		id = d;
 		callback(false, result.toJSON());
-
-		done();
+		// done();
 	});
-	r2x.importAllFile(this.shardPath, function(e, d) {
+
+	/* no need to gen Check Buffer
+	r2x.importAllFile(this.shardPath, function(e, d) {	
 		r2x.genCheckBuffer(this.shardPath, function(e, d) {
 			meta.shardList = r2x.shardList;
-
 			done();
 		});
 	});
+	*/
 
 	return true;
 };

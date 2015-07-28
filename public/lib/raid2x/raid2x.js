@@ -171,7 +171,7 @@ Raid2X.request = function(option) {
 			}
 		};
 		request.open(method, path);
-		request.send(data);		
+		request.send(data);
 	}
 };
 Raid2X.closeConnection = function() {
@@ -268,7 +268,8 @@ Raid2X.quickSend = function(file, url, m, cb) {
 	meta.url = url;
 	meta.uploads = [];
 	meta.shardList = [];
-	meta.restart = this.sendPartialFile(file, 0, meta, callback);
+
+	this.sendPartialFile(file, 0, meta, callback);
 
 	return meta;
 };
@@ -297,7 +298,7 @@ Raid2X.sendPartialFile = function(file, part, meta, callback) {
 			ui8a.set(new Uint8Array(partialFile.slice(ss, ee)), 0);
 			ui8a.set(info, meta.sliceSize);
 			var hash = self.genHash(ui8a);
-			var uploadPath = meta.url + hash;
+			var uploadPath = typeof(meta.url) == 'function'? meta.url(hash): meta.url + hash;
 			meta.shardList[n] = hash;
 
 			var formData = new FormData();
@@ -1227,7 +1228,7 @@ Raid2X.prototype.uploadAll = function(path, callback) {
 	var addUpload = function() {
 		var n = self.pointer;
 		var h = self.nextShard('hash');
-		var p = path + h;
+		var p = typeof(path) == 'function'? path(h): path + h;
 		self.upload(p, n, function(e, d) {
 			addUpload();
 			if(typeof(callback) == 'function') {
@@ -1310,13 +1311,13 @@ Raid2X.prototype.sendAll = function(path, callback) {
 		if(n >= self.attr.sliceCount) { return false; }
 
 		var h = self.nextShard('hash');
-		var p = path + h;
+		var p = typeof(path) == 'function'? path(h): path + h;
 		self.send(p, n, function(e, d) {
 			addSend();
 			var rs = {
 				hash: self.attr.hash,
 				progress: d,
-				path: path + h
+				path: p
 			};
 			if(typeof(callback) == 'function') {
 				callback(undefined, rs);
@@ -1404,7 +1405,7 @@ Raid2X.prototype.downloadAll = function(path, callback) {
 			h = t;
 		}
 		if(n >= self.attr.sliceCount * 2) { return false; }
-		p = path + h;
+		p = typeof(path) == 'function'? path(h): path + h;
 		self.download(p, n, h, function(e, d) {
 			if(d < 1) {
 				addDownload();

@@ -168,7 +168,7 @@ Receptor.prototype.registPath = function(path, botname) {
 Receptor.prototype.start = function() {
 	Receptor.super_.prototype.start.apply(this);
 	var self = this;
-	
+
 	var httpPort = this.app.get('port');
 	var httpsPort = this.app.get('portHttps');
 	this.startServer(httpPort, httpsPort);
@@ -234,6 +234,14 @@ Receptor.prototype.returnData = function(req, res, next) {
 		if(isFile) {
 			res.header("Content-Type", json.message);
 			res.send(json.data);
+		}
+		else if(json.result >= 100) {
+			res.status(json.result);
+			for(var key in json.data) {
+				res.header(key, json.data[key]);
+			}
+
+			res.end();
 		}
 		else {
 			res.send(json);

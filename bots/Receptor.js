@@ -29,7 +29,6 @@ var SocketBot = require('./_SocketBot.js'),
 	path = require('path'),
 	bodyParser = require('body-parser'),
 	multer  = require('multer'),
-	ncp = require('ncp').ncp,
 	exec = require('child_process').exec,
 	Result = require('../classes/Result.js');
 
@@ -107,7 +106,7 @@ Receptor.prototype.init = function(config) {
 	this.app.use(this.session);
 	this.app.use(bodyParser.urlencoded({ extended: false }));
 	this.app.use(bodyParser.json({limit: '10mb'}));
-	this.app.use(multer({ dest: upload, limit: '10mb'}));
+	this.app.use(multer({ dest: upload }).any());
 	this.app.use(this.filter);
 	this.app.use(express.static(path.join(__dirname, '../public')));
 	this.app.use('/shard', express.static(shards));

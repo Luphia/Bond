@@ -60,7 +60,7 @@ Receptor.prototype.init = function(config) {
 	this.http.on('error', function(err) {
 		if(err.syscall == 'listen') {
 			var nextPort = self.serverPort.pop() || self.listening + 1;
-			self.startServer(nextPort);
+			self.startServer(nextPort, self.listeningHttps);
 		}
 		else {
 			throw err;
@@ -82,7 +82,7 @@ Receptor.prototype.init = function(config) {
 		this.https.on('error', function(err) {
 			if(err.syscall == 'listen') {
 				var nextPort = self.httpsPort.pop() || self.listeningHttps + 1;
-				self.startServer(nextPort);
+				self.startServer(self.listeningHttp, nextPort);
 			}
 			else {
 				throw err;
